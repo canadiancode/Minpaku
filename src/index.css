@@ -111,3 +111,14 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Where we are — inline SVG map uses same brand stroke as hero route */
+/* Paths omit fill in the asset; SVG defaults fill to black — force stroke-only. */
+#where-we-are .where-we-are-map-outline path {
+  fill: none;
+  stroke: var(--color-brand);
+}
+
+#where-we-are .where-we-are-map-labels path[fill="white"] {
+  fill: var(--color-brand);
+}
