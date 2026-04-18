@@ -224,60 +224,68 @@ export default function Header() {
         </div>
       </div>
 
-      {isMobileNavOpen
-        ? createPortal(
-            <div className="lg:hidden">
-              <div
-                className="fixed inset-0 z-[100] bg-black/50"
-                aria-hidden="true"
-                onClick={dismissMobileNavRestoringToggleFocus}
-              />
-              <div
-                id={mobileNavPanelId}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={mobileNavTitleId}
-                className="fixed inset-y-0 right-0 z-[110] flex w-[min(20rem,calc(100vw-1rem))] max-w-full flex-col border-l border-[var(--border)] bg-[var(--bg)] shadow-xl"
+      {createPortal(
+        <div
+          className={`fixed inset-0 z-[100] lg:hidden ${
+            isMobileNavOpen ? "pointer-events-auto" : "pointer-events-none"
+          }`}
+          inert={!isMobileNavOpen}
+        >
+          <div
+            className={`fixed inset-0 z-[100] bg-black/50 transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+              isMobileNavOpen ? "opacity-100" : "opacity-0"
+            }`}
+            aria-hidden="true"
+            onClick={dismissMobileNavRestoringToggleFocus}
+          />
+          <div
+            id={mobileNavPanelId}
+            role="dialog"
+            aria-modal={isMobileNavOpen ? true : undefined}
+            aria-hidden={!isMobileNavOpen}
+            aria-labelledby={mobileNavTitleId}
+            className={`fixed inset-y-0 right-0 z-[110] flex w-[min(20rem,calc(100vw-1rem))] max-w-full flex-col border-l border-[var(--border)] bg-[var(--bg)] shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
+              isMobileNavOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+              <p
+                id={mobileNavTitleId}
+                className="text-lg font-semibold text-[var(--text-heading)]"
               >
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
-                  <p
-                    id={mobileNavTitleId}
-                    className="text-lg font-semibold text-[var(--text-heading)]"
-                  >
-                    Menu
-                  </p>
-                  <button
-                    ref={mobileDrawerCloseRef}
-                    type="button"
-                    className="inline-flex rounded-md p-2 text-[var(--text-heading)] transition hover:bg-[var(--bg-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
-                    aria-label="Close menu"
-                    onClick={dismissMobileNavRestoringToggleFocus}
-                  >
-                    <CloseMenuIcon />
-                  </button>
-                </div>
-                <nav
-                  className="flex flex-col overflow-y-auto px-4 pb-6 pt-2"
-                  aria-label="Primary"
+                Menu
+              </p>
+              <button
+                ref={mobileDrawerCloseRef}
+                type="button"
+                className="inline-flex rounded-md p-2 text-[var(--text-heading)] transition hover:bg-[var(--bg-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
+                aria-label="Close menu"
+                onClick={dismissMobileNavRestoringToggleFocus}
+              >
+                <CloseMenuIcon />
+              </button>
+            </div>
+            <nav
+              className="flex flex-col overflow-y-auto px-4 pb-6 pt-2"
+              aria-label="Primary"
+            >
+              {primaryNavigationLinks.map(({ label, fragmentId }) => (
+                <a
+                  key={fragmentId}
+                  className={mobileDrawerNavLinkClassName}
+                  href={`#${fragmentId}`}
+                  onClick={(clickEvent) =>
+                    handleMobileDrawerNavClick(clickEvent, fragmentId)
+                  }
                 >
-                  {primaryNavigationLinks.map(({ label, fragmentId }) => (
-                    <a
-                      key={fragmentId}
-                      className={mobileDrawerNavLinkClassName}
-                      href={`#${fragmentId}`}
-                      onClick={(clickEvent) =>
-                        handleMobileDrawerNavClick(clickEvent, fragmentId)
-                      }
-                    >
-                      {label}
-                    </a>
-                  ))}
-                </nav>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </div>,
+        document.body,
+      )}
     </header>
   );
 }
