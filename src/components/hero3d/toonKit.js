@@ -62,7 +62,9 @@ export function createToonKit() {
     const key = `${color}|${flat}|${emissive}|${side}|${fog}`;
     let toonMaterial = materials.get(key);
     if (!toonMaterial) {
-      toonMaterial = new THREE.MeshToonMaterial({ color, gradientMap, flatShading: flat, side, fog });
+      toonMaterial = new THREE.MeshToonMaterial({ color, gradientMap, side, fog });
+      // Not a constructor option for toon materials, but the shader honours it.
+      toonMaterial.flatShading = flat;
       if (emissive) toonMaterial.emissive = new THREE.Color(emissive);
       materials.set(key, toonMaterial);
       track(toonMaterial);

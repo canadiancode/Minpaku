@@ -17,11 +17,24 @@ function scrollSectionIntoViewportCenter(fragmentId) {
     "(prefers-reduced-motion: reduce)",
   ).matches;
 
-  sectionElement.scrollIntoView({
-    behavior: prefersReducedMotion ? "auto" : "smooth",
-    block: "center",
-    inline: "nearest",
-  });
+  const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
+  const anchorProgress = sectionElement.dataset.scrollAnchorProgress;
+
+  if (anchorProgress !== undefined) {
+    // Scroll-driven sections are taller than the viewport; land on a set point of their tour.
+    const scrollableDistance = sectionElement.offsetHeight - window.innerHeight;
+    const sectionTop = sectionElement.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({
+      top: sectionTop + scrollableDistance * Number(anchorProgress),
+      behavior: scrollBehavior,
+    });
+  } else {
+    sectionElement.scrollIntoView({
+      behavior: scrollBehavior,
+      block: "center",
+      inline: "nearest",
+    });
+  }
 
   window.history.pushState(null, "", `#${fragmentId}`);
 }

@@ -1,191 +1,166 @@
-import { useCallback, useLayoutEffect, useRef } from "react";
-import greaterVancouverCityNamesSvgSource from "../../assets/city-names.svg?raw";
-import greaterVancouverMapSvgSource from "../../assets/gva-map.svg?raw";
+import { useEffect, useRef } from "react";
+import { TOUR_STOPS } from "../where3d/tour.js";
 
-const WHERE_WE_ARE_MAP_ARTBOARD_WIDTH = 2072;
-const WHERE_WE_ARE_MAP_ARTBOARD_HEIGHT = 1096;
+const CARD_FADE = 0.03;
+const VEIL_COLOR = "#f7fcfe";
 
-function extractSvgInnerMarkup(svgSource) {
-  const trimmedSource = svgSource.replace(/^\uFEFF/, "").trim();
-  const withoutXmlOrDoctype = trimmedSource
-    .replace(/<\?xml[\s\S]*?\?>\s*/gi, "")
-    .replace(/<!DOCTYPE[\s\S]*?>\s*/gi, "");
-  const firstSvgIndex = withoutXmlOrDoctype.toLowerCase().indexOf("<svg");
-  if (firstSvgIndex === -1) return "";
-  const fromSvgTag = withoutXmlOrDoctype.slice(firstSvgIndex);
-  const firstTagEnd = fromSvgTag.indexOf(">");
-  const lastSvgClose = fromSvgTag.toLowerCase().lastIndexOf("</svg>");
-  if (
-    firstTagEnd === -1 ||
-    lastSvgClose === -1 ||
-    lastSvgClose <= firstTagEnd
-  ) {
-    return "";
-  }
-  return fromSvgTag.slice(firstTagEnd + 1, lastSvgClose).trim();
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+const smoothstep = (edge0, edge1, value) => {
+  const t = clamp01((value - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+};
+
+function cardOpacity(stopIndex, progress) {
+  const [holdStart, holdEnd] = TOUR_STOPS[stopIndex].hold;
+  const fadeIn = smoothstep(holdStart - CARD_FADE, holdStart, progress);
+  const isLast = stopIndex === TOUR_STOPS.length - 1;
+  const fadeOut = isLast ? 1 : 1 - smoothstep(holdEnd, holdEnd + CARD_FADE, progress);
+  return fadeIn * fadeOut;
 }
 
-function readSvgViewBoxFromSource(svgSource) {
-  const head = svgSource.slice(0, 800);
-  const viewBoxMatch = head.match(/viewBox="([^"]+)"/i);
-  if (viewBoxMatch) return viewBoxMatch[1];
-  const widthMatch = head.match(/\bwidth="(\d+)"/i);
-  const heightMatch = head.match(/\bheight="(\d+)"/i);
-  if (widthMatch && heightMatch) {
-    return `0 0 ${widthMatch[1]} ${heightMatch[1]}`;
-  }
-  return `0 0 ${WHERE_WE_ARE_MAP_ARTBOARD_WIDTH} ${WHERE_WE_ARE_MAP_ARTBOARD_HEIGHT}`;
-}
-
-const greaterVancouverMapSvgInnerMarkup = extractSvgInnerMarkup(
-  greaterVancouverMapSvgSource,
-);
-const greaterVancouverCityNamesSvgInnerMarkup = extractSvgInnerMarkup(
-  greaterVancouverCityNamesSvgSource,
-);
-const greaterVancouverMapViewBox = readSvgViewBoxFromSource(
-  greaterVancouverMapSvgSource,
-);
-const greaterVancouverCityNamesViewBox = readSvgViewBoxFromSource(
-  greaterVancouverCityNamesSvgSource,
-);
-
-const whereWeAreMapDecorativeLayerClassName =
-  "pointer-events-none relative z-0 w-full shrink-0 md:static md:z-auto md:flex md:min-h-0 md:w-[min(46vw,28rem)] md:flex-shrink-0 md:flex-col";
-
-/**
- * 0 until the section nears the viewport from below, then ramps to 1 as the
- * section moves upward through a viewport band (independent of hero scroll).
- */
-function computeWhereWeAreMapStrokeRevealRatio(sectionElement) {
-  const viewportHeightPx = window.innerHeight;
-  if (viewportHeightPx <= 0) return 0;
-
-  const sectionBoundingClientRect = sectionElement.getBoundingClientRect();
-  const sectionTopRelativeToViewportPx = sectionBoundingClientRect.top;
-  const revealBandStartViewportPx = viewportHeightPx * 0.88;
-  const revealBandEndViewportPx = viewportHeightPx * 0.32;
-
-  if (sectionTopRelativeToViewportPx >= revealBandStartViewportPx) return 0;
-  if (sectionTopRelativeToViewportPx <= revealBandEndViewportPx) return 1;
-
-  const revealBandSpanPx =
-    revealBandStartViewportPx - revealBandEndViewportPx;
+/** Puffy cloud bank that overlaps the hero's bottom edge and fades into the veil. */
+function CloudBank() {
+  const backPuffs = [
+    [60, 120, 70], [180, 100, 80], [320, 115, 75], [450, 95, 85], [590, 110, 80], [730, 98, 86],
+    [870, 112, 78], [1000, 100, 84], [1140, 115, 76],
+  ];
+  const frontPuffs = [
+    [0, 150, 70], [110, 140, 62], [230, 150, 72], [360, 135, 66], [490, 150, 74], [620, 138, 64],
+    [750, 150, 72], [880, 136, 66], [1010, 150, 72], [1130, 140, 64], [1220, 150, 70],
+  ];
   return (
-    (revealBandStartViewportPx - sectionTopRelativeToViewportPx) /
-    revealBandSpanPx
+    <svg
+      className="pointer-events-none absolute inset-x-0 -top-14 z-10 h-28 w-full md:-top-20 md:h-40"
+      viewBox="0 0 1200 220"
+      preserveAspectRatio="xMidYMax slice"
+      aria-hidden="true"
+    >
+      {backPuffs.map(([cx, cy, r]) => (
+        <circle key={`back-${cx}`} cx={cx} cy={cy} r={r} fill="#e4f4fb" />
+      ))}
+      {frontPuffs.map(([cx, cy, r]) => (
+        <circle key={`front-${cx}`} cx={cx} cy={cy} r={r} fill={VEIL_COLOR} />
+      ))}
+      <rect x="0" y="160" width="1200" height="60" fill={VEIL_COLOR} />
+    </svg>
   );
 }
 
-function GreaterVancouverMapStack({ mapOutlineSvgRef }) {
+function TourCard({ stop, index, cardRef }) {
+  const isFirst = index === 0;
+  const HeadingTag = isFirst ? "h2" : "h3";
   return (
-    <div className="relative aspect-[2072/1096] h-full min-h-[11rem] w-full flex-1 overflow-hidden bg-[var(--bg)] md:min-h-0">
-      <svg
-        ref={mapOutlineSvgRef}
-        className="where-we-are-map-outline pointer-events-none absolute inset-0 h-full w-full"
-        viewBox={greaterVancouverMapViewBox}
-        preserveAspectRatio="xMidYMid meet"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-        focusable="false"
-        dangerouslySetInnerHTML={{ __html: greaterVancouverMapSvgInnerMarkup }}
-      />
-      <svg
-        className="where-we-are-map-labels pointer-events-none absolute inset-0 h-full w-full"
-        viewBox={greaterVancouverCityNamesViewBox}
-        preserveAspectRatio="xMidYMid meet"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-        focusable="false"
-        dangerouslySetInnerHTML={{
-          __html: greaterVancouverCityNamesSvgInnerMarkup,
-        }}
-      />
-    </div>
+    <article
+      ref={cardRef}
+      className="pointer-events-none absolute inset-x-4 bottom-4 rounded-3xl bg-white/90 p-5 text-left opacity-0 shadow-[0_18px_40px_-18px_rgba(30,60,90,0.45)] ring-1 ring-white backdrop-blur-md will-change-transform md:inset-x-auto md:bottom-auto md:left-8 md:top-1/2 md:w-[min(24rem,38%)] md:-translate-y-1/2 md:p-7"
+    >
+      <p className="mb-1 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-brand)]">
+        {stop.eyebrow}
+      </p>
+      <HeadingTag
+        id={isFirst ? "where-we-are-heading" : undefined}
+        className="mb-2 mt-0 font-[family-name:var(--heading)] text-[22px] font-medium leading-[1.15] text-[var(--text-heading)] md:text-[28px]"
+      >
+        {stop.title}
+      </HeadingTag>
+      {stop.body && <p className="text-[15px] leading-relaxed text-[var(--text-muted)] md:text-base">{stop.body}</p>}
+      {stop.sights && (
+        <ul className="m-0 mt-3 flex list-none flex-wrap gap-1.5 p-0">
+          {stop.sights.map((sight) => (
+            <li
+              key={sight}
+              className="rounded-full bg-[var(--color-brand-subtle)] px-2.5 py-1 text-[13px] font-semibold text-[var(--color-brand-hover)]"
+            >
+              {sight}
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
   );
 }
 
 export default function WhereWeAreSection() {
   const sectionRef = useRef(null);
-  const mapOutlineSvgRef = useRef(null);
-  const outlinePathStrokesRef = useRef([]);
-  const scrollFrameRef = useRef(0);
+  const sceneContainerRef = useRef(null);
+  const veilRef = useRef(null);
+  const progressRef = useRef(null);
+  const cardRefs = useRef([]);
 
-  const applyOutlineStrokeProgressFromScroll = useCallback(() => {
-    const sectionElement = sectionRef.current;
-    if (!sectionElement) return;
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
 
-    const scrollCompletionRatio = Math.min(
-      1,
-      Math.max(0, computeWhereWeAreMapStrokeRevealRatio(sectionElement)),
-    );
+    let tourScene = null;
+    let isUnmounted = false;
+    let frameId = 0;
 
-    for (const { pathElement, pathLengthPx } of outlinePathStrokesRef.current) {
-      if (pathLengthPx <= 0) continue;
-      pathElement.style.strokeDashoffset = String(
-        pathLengthPx * (1 - scrollCompletionRatio),
-      );
-    }
-  }, []);
-
-  useLayoutEffect(() => {
-    const outlineSvgElement = mapOutlineSvgRef.current;
-    if (!outlineSvgElement) return;
-
-    const pathNodeList = outlineSvgElement.querySelectorAll("path");
-    const pathStrokeEntries = Array.from(pathNodeList).map((pathElement) => {
-      const pathLengthPx = pathElement.getTotalLength();
-      pathElement.style.strokeDasharray = String(pathLengthPx);
-      pathElement.style.strokeDashoffset = String(pathLengthPx);
-      return { pathElement, pathLengthPx };
-    });
-    outlinePathStrokesRef.current = pathStrokeEntries;
-
-    const runScrollSync = () => {
-      if (scrollFrameRef.current) return;
-      scrollFrameRef.current = window.requestAnimationFrame(() => {
-        scrollFrameRef.current = 0;
-        applyOutlineStrokeProgressFromScroll();
+    const apply = () => {
+      frameId = 0;
+      const rect = section.getBoundingClientRect();
+      const scrollable = rect.height - window.innerHeight;
+      const progress = scrollable > 0 ? clamp01(-rect.top / scrollable) : 0;
+      // 0 when the section top meets the bottom of the viewport, 1 once it reaches the top.
+      const entry = clamp01(1 - rect.top / window.innerHeight);
+      tourScene?.setProgress(progress, smoothstep(0.15, 0.95, entry));
+      if (veilRef.current) veilRef.current.style.opacity = String(1 - smoothstep(0.1, 0.55, entry));
+      if (progressRef.current) progressRef.current.style.transform = `scaleX(${progress})`;
+      cardRefs.current.forEach((card, index) => {
+        if (!card) return;
+        const opacity = cardOpacity(index, progress) * (index === 0 ? smoothstep(0.7, 1, entry) : 1);
+        card.style.opacity = String(opacity);
+        card.style.transform = `translateY(${(1 - opacity) * 14}px)`;
+        card.style.visibility = opacity > 0.01 ? "visible" : "hidden";
       });
     };
 
-    applyOutlineStrokeProgressFromScroll();
-
-    window.addEventListener("scroll", runScrollSync, { passive: true });
-    window.addEventListener("resize", runScrollSync, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", runScrollSync);
-      window.removeEventListener("resize", runScrollSync);
-      if (scrollFrameRef.current) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-        scrollFrameRef.current = 0;
-      }
+    const requestApply = () => {
+      if (!frameId) frameId = requestAnimationFrame(apply);
     };
-  }, [applyOutlineStrokeProgressFromScroll]);
+
+    import("../where3d/createLowerMainlandScene.js").then(({ createLowerMainlandScene }) => {
+      if (isUnmounted || !sceneContainerRef.current) return;
+      tourScene = createLowerMainlandScene(sceneContainerRef.current);
+      apply();
+    });
+
+    apply();
+    window.addEventListener("scroll", requestApply, { passive: true });
+    window.addEventListener("resize", requestApply, { passive: true });
+    return () => {
+      isUnmounted = true;
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", requestApply);
+      window.removeEventListener("resize", requestApply);
+      tourScene?.dispose();
+    };
+  }, []);
 
   return (
     <section
       ref={sectionRef}
       id="where-we-are"
       aria-labelledby="where-we-are-heading"
-      className="relative flex scroll-mt-20 flex-col gap-8 border-b border-[var(--border)] bg-[var(--bg)] px-4 py-12 text-left md:flex-row md:items-stretch md:gap-10 md:px-6 md:py-16"
+      data-scroll-anchor-progress="0.05"
+      className="relative h-[500svh] border-b border-[var(--border)]"
     >
-      <div className={whereWeAreMapDecorativeLayerClassName}>
-        <GreaterVancouverMapStack mapOutlineSvgRef={mapOutlineSvgRef} />
-      </div>
-      <div className="relative z-10 w-full max-w-2xl md:flex-1 md:py-2">
-        <h2
-          id="where-we-are-heading"
-          className="mb-3 text-2xl font-medium text-[var(--text-heading)] md:text-3xl"
-        >
-          Where we are
-        </h2>
-        <p className="text-[var(--text-muted)]">
-          Central Coquitlam, BC — the perfect base. World-class hiking trails
-          when you want nature, and the heart of Vancouver when you want the
-          city.
-        </p>
+      <CloudBank />
+      <div className="sticky top-0 h-svh overflow-hidden bg-[linear-gradient(180deg,#8fd4f5_0%,#e9f8fc_62%)]">
+        <div ref={sceneContainerRef} className="absolute inset-0" aria-hidden="true" />
+        <div ref={veilRef} className="pointer-events-none absolute inset-0" style={{ background: VEIL_COLOR }} aria-hidden="true" />
+        {TOUR_STOPS.map((stop, index) => (
+          <TourCard
+            key={stop.id}
+            stop={stop}
+            index={index}
+            cardRef={(element) => {
+              cardRefs.current[index] = element;
+            }}
+          />
+        ))}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-white/40" aria-hidden="true">
+          <div ref={progressRef} className="h-full origin-left bg-[var(--color-brand)]" style={{ transform: "scaleX(0)" }} />
+        </div>
       </div>
     </section>
   );

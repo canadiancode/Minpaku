@@ -9,15 +9,29 @@ export default function HeroSection() {
 
     let flightScene = null;
     let isUnmounted = false;
+    let frameId = 0;
+
+    const applyExitProgress = () => {
+      frameId = 0;
+      const heroHeight = sceneContainer.offsetHeight || 1;
+      flightScene?.setExitProgress(Math.min(1, Math.max(0, window.scrollY / heroHeight)));
+    };
+    const requestExitProgress = () => {
+      if (!frameId) frameId = requestAnimationFrame(applyExitProgress);
+    };
 
     // Load three.js on demand so the rest of the page isn't blocked by it.
     import("../hero3d/createFlightScene.js").then(({ createFlightScene }) => {
       if (isUnmounted) return;
       flightScene = createFlightScene(sceneContainer);
+      applyExitProgress();
     });
+    window.addEventListener("scroll", requestExitProgress, { passive: true });
 
     return () => {
       isUnmounted = true;
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", requestExitProgress);
       flightScene?.dispose();
     };
   }, []);
@@ -26,7 +40,7 @@ export default function HeroSection() {
     <section
       id="hero"
       aria-labelledby="hero-heading"
-      className="relative isolate h-[clamp(580px,88svh,820px)] overflow-hidden scroll-mt-20 border-b border-[var(--border)] bg-[linear-gradient(180deg,#8fd4f5_0%,#e9f8fc_62%)]"
+      className="relative isolate h-[clamp(580px,88svh,820px)] overflow-hidden scroll-mt-20 bg-[linear-gradient(180deg,#8fd4f5_0%,#e9f8fc_62%)]"
     >
       <div ref={sceneContainerRef} className="absolute inset-0 -z-10" aria-hidden="true" />
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 pt-10 text-center md:mx-0 md:items-start md:px-10 md:pt-14 md:text-left">

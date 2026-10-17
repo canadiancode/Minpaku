@@ -3,8 +3,8 @@ import { createToonKit, palette as P } from "./toonKit.js";
 import { createTokyo, createVancouver, PAD_TOP } from "./cities.js";
 import { createBoat, createCloud, createOrca, createPlane, createPuffPool } from "./props.js";
 
-const SKY_TOP = "#8fd4f5";
-const SKY_HORIZON = "#e9f8fc";
+export const SKY_TOP = "#8fd4f5";
+export const SKY_HORIZON = "#e9f8fc";
 
 const smoothstep = (edge0, edge1, value) => {
   const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
@@ -36,7 +36,7 @@ function createFlightPath(groundY) {
 }
 
 /** Sky dome shaded by view direction, so the horizon always meets the fogged ocean. */
-function createSkyDome(kit) {
+export function createSkyDome(kit) {
   const material = kit.track(
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
@@ -68,7 +68,7 @@ function createSkyDome(kit) {
   return dome;
 }
 
-function createOcean(kit) {
+export function createOcean(kit) {
   const geometry = new THREE.PlaneGeometry(420, 320, 110, 84).rotateX(-Math.PI / 2);
   geometry.translate(0, 0, -60);
   const ocean = kit.mesh(geometry, P.ocean, { flat: true, castShadow: false });
@@ -163,10 +163,11 @@ export function createFlightScene(container) {
   const puffs = createPuffPool(kit, scene, 70);
 
   const pointer = { x: 0, y: 0 };
+  let exitProgress = 0;
   const parallax = { x: 0, y: 0 };
   const view = { width: 1, height: 1, aspect: 1, cameraX: 0 };
   const lookTarget = new THREE.Vector3();
-  const cameraDirection = new THREE.Vector3(0, 0.36, 1).normalize();
+  const cameraDirection = new THREE.Vector3(0, 0.62, 1).normalize();
 
   const state = {
     progress: reducedMotion ? 0.24 : 0.02,
@@ -260,8 +261,8 @@ export function createFlightScene(container) {
 
   function updateCamera(planeX, deltaSeconds) {
     const wideness = smoothstep(0.75, 1.9, view.aspect);
-    const visibleWidth = THREE.MathUtils.lerp(24, 50, wideness);
-    const followAmount = THREE.MathUtils.lerp(1, 0.3, wideness);
+    const visibleWidth = THREE.MathUtils.lerp(26, 72, wideness);
+    const followAmount = THREE.MathUtils.lerp(1, 0.12, wideness);
     const maxOffset = THREE.MathUtils.lerp(13, 5, wideness);
     const targetX = THREE.MathUtils.clamp(planeX * followAmount, -maxOffset, maxOffset);
     view.cameraX = deltaSeconds > 0 ? damp(view.cameraX, targetX, 1.6, deltaSeconds) : targetX;
@@ -273,8 +274,10 @@ export function createFlightScene(container) {
     const halfFovX = Math.atan(Math.tan(halfFovY) * view.aspect);
     const distance = visibleWidth / 2 / Math.tan(halfFovX);
 
-    lookTarget.set(view.cameraX, 2.4, 0.5);
-    camera.position.copy(lookTarget).addScaledVector(cameraDirection, distance);
+    // Scrolling out of the hero lifts the camera up toward the clouds of the next section.
+    lookTarget.set(view.cameraX, 2.4 + exitProgress * 7, 0.5);
+    camera.position.copy(lookTarget).addScaledVector(cameraDirection, distance * (1 - exitProgress * 0.12));
+    camera.position.y += exitProgress * 6;
     camera.position.x += parallax.x * 2.5;
     camera.position.y += parallax.y * 1.5;
     camera.lookAt(lookTarget);
@@ -295,7 +298,7 @@ export function createFlightScene(container) {
     renderer.setSize(width, height, false);
     camera.aspect = view.aspect;
     // Push the scene toward the bottom so the headline has open sky above it.
-    const shift = THREE.MathUtils.lerp(0.3, 0.27, smoothstep(0.75, 1.9, view.aspect));
+    const shift = THREE.MathUtils.lerp(0.2, 0.16, smoothstep(0.75, 1.9, view.aspect));
     camera.setViewOffset(width, height, 0, -height * shift, width, height);
     if (reducedMotion || !running) renderFrame(0);
   }
@@ -365,6 +368,10 @@ export function createFlightScene(container) {
   start();
 
   return {
+    setExitProgress(value) {
+      exitProgress = THREE.MathUtils.clamp(value, 0, 1);
+      if (!running) renderFrame(0);
+    },
     dispose() {
       stop();
       resizeObserver.disconnect();
