@@ -2,31 +2,128 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Minpaku · A Canadian home in Coquitlam, BC</title>
     <meta
       name="description"
-      content="Stay with a Japanese–Canadian family in Coquitlam, BC. Cozy guest rooms, home-cooked meals, and hiking, skiing and pickleball with your hosts. 日本語でもご案内できます。"
+      content="Stay with a Japanese–Canadian family in Coquitlam, BC. Three cozy guest rooms, breakfast every morning, home-cooked dinners, and hiking, skiing and pickleball with your hosts. 日本語でご案内できます。"
     />
+    <link rel="canonical" href="https://minpaku.ca/" />
+    <link rel="alternate" hreflang="en" href="https://minpaku.ca/" />
+    <link rel="alternate" hreflang="ja" href="https://minpaku.ca/?lang=ja" />
+    <link rel="alternate" hreflang="x-default" href="https://minpaku.ca/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#8fd4f5" />
+    <meta name="color-scheme" content="light" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Social sharing -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Minpaku" />
+    <meta property="og:url" content="https://minpaku.ca/" />
     <meta property="og:title" content="Minpaku · A Canadian home in Coquitlam, BC" />
     <meta
       property="og:description"
-      content="Canada is easier when someone's waiting for you. Stay with a Japanese–Canadian family in Coquitlam, BC."
+      content="Canada is easier when someone's waiting for you. Stay with a Japanese–Canadian family in Coquitlam, BC — 日本語OK."
     />
-    <meta property="og:url" content="https://minpaku.ca/" />
+    <meta property="og:image" content="https://minpaku.ca/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Minpaku: a cartoon plane flying between Tokyo and Vancouver islands" />
     <meta property="og:locale" content="en_CA" />
     <meta property="og:locale:alternate" content="ja_JP" />
-    <link rel="canonical" href="https://minpaku.ca/" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Minpaku · A Canadian home in Coquitlam, BC" />
+    <meta
+      name="twitter:description"
+      content="Canada is easier when someone's waiting for you. Stay with a Japanese–Canadian family in Coquitlam, BC."
+    />
+    <meta name="twitter:image" content="https://minpaku.ca/og-image.jpg" />
+
+    <!-- Icons -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Sekuya&family=Zen+Maru+Gothic:wght@500;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts load from src/main.jsx so they never block the first paint. -->
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Sekuya&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://minpaku.ca/#website",
+            "url": "https://minpaku.ca/",
+            "name": "Minpaku",
+            "inLanguage": ["en", "ja"]
+          },
+          {
+            "@type": "LodgingBusiness",
+            "@id": "https://minpaku.ca/#lodging",
+            "name": "Minpaku",
+            "url": "https://minpaku.ca/",
+            "image": "https://minpaku.ca/og-image.jpg",
+            "logo": "https://minpaku.ca/icon-512.png",
+            "description": "A Japanese–Canadian family home in Coquitlam, BC with three guest rooms, breakfast included, home-cooked dinners, and guided hikes and pickleball with the hosts.",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Coquitlam",
+              "addressRegion": "BC",
+              "addressCountry": "CA"
+            },
+            "areaServed": "Metro Vancouver",
+            "knowsLanguage": ["en", "ja"],
+            "priceRange": "CA$300 per night, breakfast included",
+            "amenityFeature": [
+              { "@type": "LocationFeatureSpecification", "name": "Breakfast included", "value": true },
+              { "@type": "LocationFeatureSpecification", "name": "Home-cooked dinners", "value": true },
+              { "@type": "LocationFeatureSpecification", "name": "Guided hikes", "value": true },
+              { "@type": "LocationFeatureSpecification", "name": "Japanese-speaking hosts", "value": true }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <style>
+      /* First paint before the app loads (and what crawlers without JavaScript see). */
+      .prerender {
+        min-height: 92svh;
+        padding: 120px 24px 48px;
+        font-family: "Nunito", system-ui, sans-serif;
+        color: #10121f;
+        background: linear-gradient(180deg, #8fd4f5 0%, #e9f8fc 62%);
+      }
+      .prerender h1 {
+        max-width: 18ch;
+        margin: 0 0 16px;
+        font-family: "Sekuya", system-ui, sans-serif;
+        font-size: clamp(36px, 6vw, 56px);
+        font-weight: 500;
+        line-height: 1.08;
+      }
+      .prerender p {
+        max-width: 36rem;
+        margin: 0 0 12px;
+        font-size: 18px;
+        line-height: 1.6;
+        color: #4e5368;
+      }
+      .prerender a {
+        color: #9b1b30;
+        font-weight: 800;
+      }
+    </style>
   </head>
   <body>
     <!-- Lets Netlify Forms register the "inquiry" form; the contact function stores submissions in it. -->
@@ -34,7 +131,25 @@
       <input name="name" /><input name="email" /><textarea name="message"></textarea>
       <input name="language" /><input name="company" />
     </form>
-    <div id="root"></div>
+    <div id="root">
+      <main class="prerender">
+        <h1>Canada is easier when someone's waiting for you.</h1>
+        <p>
+          A real Canadian home in Coquitlam, BC — two hosts, three cozy guest rooms and a whole lot of mountains out the
+          back door.
+        </p>
+        <p lang="ja">
+          BC州コキットラムにある、本物のカナダの家。ふたりのホストと居心地のいいゲストルームが3部屋、そして裏口を出ればすぐ山。
+        </p>
+        <noscript>
+          <p>
+            Breakfast every morning, home-cooked dinners, guided hikes, skiing and snowboarding, and pickleball with
+            your hosts. Vancouver, North Vancouver and the rest of the Lower Mainland are all close by.
+          </p>
+          <p>Turn on JavaScript to take the interactive tour and send us a message.</p>
+        </noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

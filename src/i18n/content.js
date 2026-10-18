@@ -7,9 +7,12 @@ export const content = {
   en: {
     meta: {
       title: "Minpaku · A Canadian home in Coquitlam, BC",
+      description:
+        "Stay with a Japanese–Canadian family in Coquitlam, BC. Three cozy guest rooms, breakfast every morning, home-cooked dinners, and hiking, skiing and pickleball with your hosts.",
     },
     nav: {
       brandTagline: "Coquitlam, BC",
+      skipToContent: "Skip to content",
       chapters: {
         "where-we-are": "The Stay",
         "our-story": "Our Story",
@@ -187,9 +190,12 @@ export const content = {
   ja: {
     meta: {
       title: "Minpaku · BC州コキットラムのカナダの家",
+      description:
+        "BC州コキットラムで、日本とカナダのファミリーの家に滞在しませんか。居心地のいいゲストルームが3部屋、毎朝の朝ごはん、手づくりの夕ごはん、そしてホストと一緒にハイキング、スキー、ピックルボール。",
     },
     nav: {
       brandTagline: "BC州コキットラム",
+      skipToContent: "本文へスキップ",
       chapters: {
         "where-we-are": "ロケーション",
         "our-story": "わが家",
