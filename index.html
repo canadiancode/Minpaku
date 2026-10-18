@@ -2,17 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minpaku · A Canadian home in Coquitlam, BC</title>
+    <meta
+      name="description"
+      content="Stay with a Japanese–Canadian family in Coquitlam, BC. Cozy guest rooms, home-cooked meals, and hiking, skiing and pickleball with your hosts. 日本語でもご案内できます。"
+    />
+    <meta name="theme-color" content="#8fd4f5" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Minpaku" />
+    <meta property="og:title" content="Minpaku · A Canadian home in Coquitlam, BC" />
+    <meta
+      property="og:description"
+      content="Canada is easier when someone's waiting for you. Stay with a Japanese–Canadian family in Coquitlam, BC."
+    />
+    <meta property="og:url" content="https://minpaku.ca/" />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:locale:alternate" content="ja_JP" />
+    <link rel="canonical" href="https://minpaku.ca/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sekuya&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Sekuya&family=Zen+Maru+Gothic:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>minpaku</title>
   </head>
   <body>
+    <!-- Lets Netlify Forms register the "inquiry" form; the contact function stores submissions in it. -->
+    <form name="inquiry" data-netlify="true" netlify-honeypot="company" hidden>
+      <input name="name" /><input name="email" /><textarea name="message"></textarea>
+      <input name="language" /><input name="company" />
+    </form>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -1,12 +1,13 @@
-import Header from "./components/Header";
-import HeroSection from "./components/sections/HeroSection";
-import WhereWeAreSection from "./components/sections/WhereWeAreSection";
-import WhoWeAreSection from "./components/sections/WhoWeAreSection";
-import WhatWeOfferSection from "./components/sections/WhatWeOfferSection";
-import ContactSection from "./components/sections/ContactSection";
-import PricingSection from "./components/sections/PricingSection";
-import "./App.css";
+import Header from "./components/header/Header.jsx";
+import HeroSection from "./components/sections/HeroSection.jsx";
+import WhereWeAreSection from "./components/sections/WhereWeAreSection.jsx";
+import OurStorySection from "./components/sections/OurStorySection.jsx";
+import ActivitiesSection from "./components/sections/ActivitiesSection.jsx";
+import PricingSection from "./components/sections/PricingSection.jsx";
+import ContactSection from "./components/sections/ContactSection.jsx";
+import FooterSection from "./components/sections/FooterSection.jsx";
 
+/** One page, one camera journey: every section is a chapter. */
 function App() {
   return (
     <>
@@ -14,11 +15,12 @@ function App() {
       <main className="w-full text-left">
         <HeroSection />
         <WhereWeAreSection />
-        <WhoWeAreSection />
-        <WhatWeOfferSection />
+        <OurStorySection />
+        <ActivitiesSection />
         <PricingSection />
         <ContactSection />
       </main>
+      <FooterSection />
     </>
   );
 }

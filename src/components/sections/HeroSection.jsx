@@ -1,113 +1,78 @@
-import { useCallback, useLayoutEffect, useRef } from "react";
-import japanToCanadaFarSvgRaw from "../../assets/japan-to-canada-far.svg?raw";
-
-const routePathMatch = japanToCanadaFarSvgRaw.match(/\bd="([^"]+)"/);
-const routePathD = routePathMatch ? routePathMatch[1] : "";
-
-const routeSvgDecorativeLayerClassName =
-  "pointer-events-none absolute inset-0 z-0 lg:inset-y-0 lg:left-1/2 lg:right-0";
+import { useEffect, useRef } from "react";
+import { registerStageView } from "../stage/stage.js";
+import { useLocale } from "../../i18n/localeContext.js";
 
 export default function HeroSection() {
-  const sectionRef = useRef(null);
-  const pathRef = useRef(null);
-  const pathLengthRef = useRef(0);
-  const scrollFrameRef = useRef(0);
-  const baselineWindowScrollYRef = useRef(0);
+  const { t, language } = useLocale();
+  const sceneContainerRef = useRef(null);
+  const viewRef = useRef(null);
+  const languageRef = useRef(language);
 
-  const applyStrokeProgressFromScroll = useCallback(() => {
-    const sectionElement = sectionRef.current;
-    const pathElement = pathRef.current;
-    if (!sectionElement || !pathElement) return;
+  useEffect(() => {
+    languageRef.current = language;
+    viewRef.current?.setLanguage(language);
+  }, [language]);
 
-    const pathLength = pathLengthRef.current;
-    if (pathLength <= 0) return;
+  useEffect(() => {
+    const sceneContainer = sceneContainerRef.current;
+    if (!sceneContainer) return;
+    let frameId = 0;
 
-    const heroHeightPx = sectionElement.offsetHeight;
-    const scrollCompletionRangePx = Math.max(1, heroHeightPx * 0.25);
-    const scrollDeltaSinceBaseline = Math.max(
-      0,
-      window.scrollY - baselineWindowScrollYRef.current,
-    );
-    const scrollCompletionRatio = Math.min(
-      1,
-      scrollDeltaSinceBaseline / scrollCompletionRangePx,
-    );
-
-    pathElement.style.strokeDashoffset = String(
-      pathLength * (1 - scrollCompletionRatio),
-    );
-  }, []);
-
-  useLayoutEffect(() => {
-    const pathElement = pathRef.current;
-    if (!pathElement) return;
-
-    const pathLength = pathElement.getTotalLength();
-    pathLengthRef.current = pathLength;
-    pathElement.style.strokeDasharray = String(pathLength);
-    pathElement.style.strokeDashoffset = String(pathLength);
-
-    baselineWindowScrollYRef.current = window.scrollY;
-
-    const runScrollSync = () => {
-      if (scrollFrameRef.current) return;
-      scrollFrameRef.current = window.requestAnimationFrame(() => {
-        scrollFrameRef.current = 0;
-        applyStrokeProgressFromScroll();
-      });
+    const applyExitProgress = () => {
+      frameId = 0;
+      const heroHeight = sceneContainer.offsetHeight || 1;
+      viewRef.current?.setExitProgress(Math.min(1, Math.max(0, window.scrollY / heroHeight)));
+    };
+    const requestExitProgress = () => {
+      if (!frameId) frameId = requestAnimationFrame(applyExitProgress);
     };
 
-    applyStrokeProgressFromScroll();
-
-    window.addEventListener("scroll", runScrollSync, { passive: true });
-    window.addEventListener("resize", runScrollSync, { passive: true });
+    // three.js and the scene load on demand, so the rest of the page isn't blocked by them.
+    const flightModule = import("../hero3d/createFlightView.js");
+    const registration = registerStageView(sceneContainer, (context) =>
+      flightModule.then(({ createFlightView }) => createFlightView(context)),
+    );
+    registration.ready.then((view) => {
+      viewRef.current = view;
+      view?.setLanguage(languageRef.current);
+      applyExitProgress();
+    });
+    window.addEventListener("scroll", requestExitProgress, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", runScrollSync);
-      window.removeEventListener("resize", runScrollSync);
-      if (scrollFrameRef.current) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-        scrollFrameRef.current = 0;
-      }
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", requestExitProgress);
+      registration.unregister();
+      viewRef.current = null;
     };
-  }, [applyStrokeProgressFromScroll]);
+  }, []);
 
   return (
     <section
-      ref={sectionRef}
       id="hero"
       aria-labelledby="hero-heading"
-      className="relative overflow-hidden scroll-mt-20 border-b border-[var(--border)] bg-[var(--bg-muted)] px-4 py-10 text-center md:px-6 md:py-14 md:text-left"
+      className="relative isolate h-[clamp(620px,92svh,860px)] overflow-hidden bg-[linear-gradient(180deg,#8fd4f5_0%,#e9f8fc_62%)]"
     >
-      <div className={routeSvgDecorativeLayerClassName} aria-hidden="true">
-        <svg
-          className="h-full w-full"
-          viewBox="0 0 3946 2407"
-          fill="none"
-          preserveAspectRatio="xMidYMid meet"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            ref={pathRef}
-            d={routePathD}
-            fill="none"
-            stroke="var(--color-brand)"
-            strokeWidth="15"
-            strokeLinecap="round"
-          />
-        </svg>
-      </div>
-      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col md:mx-0 md:max-w-2xl md:items-start">
-        <h1
-          id="hero-heading"
-          className="mb-3 mt-0 text-2xl font-medium leading-[118%] tracking-[-0.24px] text-[var(--text-heading)] text-balance md:text-3xl"
-        >
-          Canada is easier when someone's waiting for you.
-        </h1>
-        <p className="max-w-2xl text-[var(--text-muted)]">
-          A real Canadian home. Experience Canada the way Canadians do.
+      <div ref={sceneContainerRef} className="absolute inset-0 -z-10" aria-hidden="true" />
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 pt-24 text-center md:mx-0 md:items-start md:px-10 md:pt-28 md:text-left">
+        <p className="hero-badge">
+          <span>{t.hero.badgeFrom}</span>
+          <span className="hero-badge-route" aria-hidden="true">
+            <span className="hero-badge-plane">✈</span>
+          </span>
+          <span>{t.hero.badgeTo}</span>
         </p>
+        <h1 id="hero-heading" className="hero-copy-glow mb-3 mt-4 text-balance leading-[1.08] text-[var(--text-heading)]">
+          {t.hero.headline}
+        </h1>
+        <p className="hero-copy-glow max-w-xl text-pretty font-semibold text-[var(--text-muted)]">{t.hero.body}</p>
       </div>
+      <a className="hero-scroll-cue" href="#where-we-are">
+        <span>{t.hero.scrollCue}</span>
+        <span className="hero-scroll-cue-arrow" aria-hidden="true">
+          ↓
+        </span>
+      </a>
     </section>
   );
 }
