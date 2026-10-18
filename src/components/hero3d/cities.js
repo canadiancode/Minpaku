@@ -133,6 +133,7 @@ function createIslandBase(kit, { side, grassColor, outlines, road }) {
   function addCars(colors) {
     colors.forEach((color, index) => {
       const car = createCar(kit, color);
+      car.userData.dynamic = true;
       group.add(car);
       const clockwise = index % 2 === 1;
       cars.push({
@@ -294,7 +295,7 @@ export function createTokyo(kit) {
 
   const flag = createFlag(kit, drawJapanFlag);
   island.put(flag.object, -15.4, -1.3);
-  island.put(createSign(kit, "TOKYO"), -12.8, 4.6);
+  const sign = island.put(createSign(kit, "TOKYO"), -12.8, 4.6);
 
   island.addCars([P.brand, "#4cc9f0", P.yellow, "#90be6d"]);
 
@@ -304,6 +305,7 @@ export function createTokyo(kit) {
 
   return {
     group: island.group,
+    sign,
     update(time) {
       island.updateCars(time);
       flag.update(time);
@@ -425,7 +427,7 @@ export function createVancouver(kit) {
 
   const flag = createFlag(kit, drawCanadaFlag);
   island.put(flag.object, 15.4, -1.3);
-  island.put(createSign(kit, "VANCOUVER"), 12.8, 4.6);
+  const sign = island.put(createSign(kit, "VANCOUVER"), 12.8, 4.6);
 
   island.addCars(["#f94144", P.white, "#577590", "#f8961e"]);
 
@@ -437,6 +439,7 @@ export function createVancouver(kit) {
 
   return {
     group: island.group,
+    sign,
     update(time) {
       island.updateCars(time);
       flag.update(time);

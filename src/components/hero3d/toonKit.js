@@ -31,11 +31,23 @@ export const palette = {
   mountain: "#6ba8a0",
 };
 
-/** Rounded box with a safe corner radius. */
+const roundedBoxCache = new Map();
+
+/**
+ * Rounded box with a safe corner radius. Building one is surprisingly costly and
+ * scenes reuse the same sizes hundreds of times (windows, planks, cars), so
+ * identical boxes share one geometry. Callers must not mutate the result.
+ */
 export function roundedBox(width, height, depth, radius) {
   const maxRadius = Math.min(width, height, depth) / 2 - 0.001;
   const cornerRadius = Math.min(radius ?? Math.min(width, height, depth) * 0.25, maxRadius);
-  return new RoundedBoxGeometry(width, height, depth, 3, cornerRadius);
+  const key = `${width}|${height}|${depth}|${cornerRadius.toFixed(4)}`;
+  let geometry = roundedBoxCache.get(key);
+  if (!geometry) {
+    geometry = new RoundedBoxGeometry(width, height, depth, 3, cornerRadius);
+    roundedBoxCache.set(key, geometry);
+  }
+  return geometry;
 }
 
 /**
@@ -95,6 +107,16 @@ export function createToonKit() {
     return toonMesh;
   }
 
+  /**
+   * Lets go of a geometry that was baked into a merged mesh, so its memory can
+   * be reclaimed. Shared geometries (from `geometry()`) are kept.
+   */
+  function release(resource) {
+    for (const shared of geometries.values()) if (shared === resource) return;
+    disposables.delete(resource);
+    resource.dispose();
+  }
+
   function dispose() {
     disposables.forEach((resource) => resource.dispose());
     disposables.clear();
@@ -102,7 +124,7 @@ export function createToonKit() {
     geometries.clear();
   }
 
-  return { gradientMap, track, material, texturedMaterial, geometry, mesh, dispose };
+  return { gradientMap, track, material, texturedMaterial, geometry, mesh, release, dispose };
 }
 
 /** Thin cylinder spanning two points — used for tower legs and struts. */

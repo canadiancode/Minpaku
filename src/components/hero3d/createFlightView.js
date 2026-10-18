@@ -2,9 +2,10 @@ import * as THREE from "three";
 import { createToonKit, palette as P } from "./toonKit.js";
 import { createTokyo, createVancouver, PAD_TOP } from "./cities.js";
 import { createBoat, createCloud, createOrca, createPlane, createPuffPool } from "./props.js";
+import { mergeStaticMeshes } from "../stage/mergeStatic.js";
+import { SKY_HORIZON, createOcean, createSkyDome } from "../stage/environment.js";
+import { content } from "../../i18n/content.js";
 
-export const SKY_TOP = "#8fd4f5";
-export const SKY_HORIZON = "#e9f8fc";
 
 const smoothstep = (edge0, edge1, value) => {
   const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
@@ -35,74 +36,13 @@ function createFlightPath(groundY) {
   return new THREE.CatmullRomCurve3(points, true, "centripetal");
 }
 
-/** Sky dome shaded by view direction, so the horizon always meets the fogged ocean. */
-export function createSkyDome(kit) {
-  const material = kit.track(
-    new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      uniforms: {
-        topColor: { value: new THREE.Color(SKY_TOP) },
-        horizonColor: { value: new THREE.Color(SKY_HORIZON) },
-      },
-      vertexShader: `
-        varying vec3 vDirection;
-        void main() {
-          vDirection = normalize(position);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 horizonColor;
-        varying vec3 vDirection;
-        void main() {
-          float height = pow(clamp(vDirection.y * 2.2, 0.0, 1.0), 0.7);
-          gl_FragColor = vec4(mix(horizonColor, topColor, height), 1.0);
-          #include <colorspace_fragment>
-        }`,
-    }),
-  );
-  const dome = new THREE.Mesh(kit.track(new THREE.SphereGeometry(500, 32, 16)), material);
-  dome.renderOrder = -1;
-  return dome;
-}
 
-export function createOcean(kit) {
-  const geometry = new THREE.PlaneGeometry(420, 320, 110, 84).rotateX(-Math.PI / 2);
-  geometry.translate(0, 0, -60);
-  const ocean = kit.mesh(geometry, P.ocean, { flat: true, castShadow: false });
-  const positions = geometry.attributes.position.array;
-
-  function update(time) {
-    for (let index = 0; index < positions.length; index += 3) {
-      const x = positions[index];
-      const z = positions[index + 2];
-      positions[index + 1] = Math.sin(x * 0.33 + time * 1.1) * 0.11 + Math.cos(z * 0.41 - time * 0.8) * 0.09;
-    }
-    geometry.attributes.position.needsUpdate = true;
-  }
-
-  return { object: ocean, update };
-}
-
-export function createFlightScene(container) {
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-  } catch {
-    return { dispose() {} };
-  }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.domElement.style.display = "block";
-  renderer.domElement.style.width = "100%";
-  renderer.domElement.style.height = "100%";
-  container.appendChild(renderer.domElement);
-
+/**
+ * Hero scene as a stage view: builds the world, then the shared stage calls
+ * resize/update and renders it. Building yields between big steps.
+ */
+export async function createFlightView({ reducedMotion, yieldToMain, createTimeSlicer, invalidate }) {
+  const slice = createTimeSlicer();
   const kit = createToonKit();
   const scene = new THREE.Scene();
   const skyDome = createSkyDome(kit);
@@ -134,8 +74,12 @@ export function createFlightScene(container) {
   scene.add(ocean.object);
 
   const tokyo = createTokyo(kit);
+  await yieldToMain();
   const vancouver = createVancouver(kit);
   scene.add(tokyo.group, vancouver.group);
+  await yieldToMain();
+  await mergeStaticMeshes(kit, tokyo.group, slice);
+  await mergeStaticMeshes(kit, vancouver.group, slice);
 
   const random = seededRandom(7);
   const clouds = Array.from({ length: 9 }, (_, index) => {
@@ -289,27 +233,19 @@ export function createFlightScene(container) {
     camera.updateProjectionMatrix();
   }
 
-  function resize() {
-    const width = Math.max(1, container.clientWidth);
-    const height = Math.max(1, container.clientHeight);
+  function resize(width, height) {
     view.width = width;
     view.height = height;
     view.aspect = width / height;
-    renderer.setSize(width, height, false);
     camera.aspect = view.aspect;
     // Push the scene toward the bottom so the headline has open sky above it.
-    const shift = THREE.MathUtils.lerp(0.2, 0.16, smoothstep(0.75, 1.9, view.aspect));
+    const shift = THREE.MathUtils.lerp(0.2, 0.24, smoothstep(0.75, 1.9, view.aspect));
     camera.setViewOffset(width, height, 0, -height * shift, width, height);
-    if (reducedMotion || !running) renderFrame(0);
   }
 
   let elapsed = 0;
-  let lastTimestamp = null;
-  let frameId = 0;
-  let running = false;
-  let isVisible = true;
 
-  function renderFrame(deltaSeconds) {
+  function update(deltaSeconds) {
     elapsed += deltaSeconds;
     const planeX = updatePlane(elapsed, deltaSeconds);
     tokyo.update(elapsed);
@@ -323,40 +259,7 @@ export function createFlightScene(container) {
       if (entry.cloud.position.x > 40) entry.cloud.position.x = -40;
     }
     updateCamera(planeX, deltaSeconds);
-    renderer.render(scene, camera);
   }
-
-  function tick(timestamp) {
-    frameId = requestAnimationFrame(tick);
-    const deltaSeconds = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, 0.05);
-    lastTimestamp = timestamp;
-    renderFrame(deltaSeconds);
-  }
-
-  function start() {
-    if (running || reducedMotion || !isVisible || document.hidden) return;
-    running = true;
-    lastTimestamp = null;
-    frameId = requestAnimationFrame(tick);
-  }
-
-  function stop() {
-    running = false;
-    cancelAnimationFrame(frameId);
-  }
-
-  const resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(container);
-
-  const intersectionObserver = new IntersectionObserver(([entry]) => {
-    isVisible = entry.isIntersecting;
-    if (isVisible) start();
-    else stop();
-  });
-  intersectionObserver.observe(container);
-
-  const onVisibilityChange = () => (document.hidden ? stop() : start());
-  document.addEventListener("visibilitychange", onVisibilityChange);
 
   const onPointerMove = (event) => {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -364,23 +267,26 @@ export function createFlightScene(container) {
   };
   window.addEventListener("pointermove", onPointerMove, { passive: true });
 
-  resize();
-  start();
+  function setLanguage(language) {
+    const signs = (content[language] ?? content.en).hero.signs;
+    tokyo.sign.userData.setLabel(signs.tokyo);
+    vancouver.sign.userData.setLabel(signs.vancouver);
+    invalidate();
+  }
 
   return {
+    scene,
+    camera,
+    resize,
+    update,
+    setLanguage,
     setExitProgress(value) {
       exitProgress = THREE.MathUtils.clamp(value, 0, 1);
-      if (!running) renderFrame(0);
+      invalidate();
     },
     dispose() {
-      stop();
-      resizeObserver.disconnect();
-      intersectionObserver.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pointermove", onPointerMove);
       kit.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
     },
   };
 }

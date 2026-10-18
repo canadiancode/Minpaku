@@ -141,6 +141,7 @@ export function createCloud(kit, random) {
 /** Flag on a pole; `draw` paints the 256×128 cloth texture. */
 export function createFlag(kit, draw) {
   const flag = new THREE.Group();
+  flag.userData.dynamic = true;
   flag.add(place(kit.mesh(new THREE.CylinderGeometry(0.05, 0.06, 3, 8), P.white), 0, 1.5, 0));
   flag.add(place(kit.mesh(new THREE.SphereGeometry(0.1, 10, 8), P.yellow), 0, 3.05, 0));
 
@@ -225,7 +226,9 @@ export function createSign(kit, label) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
 
+  let currentLabel = label;
   const paint = () => {
+    const label = currentLabel;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = P.brandDeep;
     context.textAlign = "center";
@@ -247,6 +250,10 @@ export function createSign(kit, label) {
   });
   face.position.set(0, 1.25, 0.085);
   sign.add(face);
+  sign.userData.setLabel = (nextLabel) => {
+    currentLabel = nextLabel;
+    paint();
+  };
   return sign;
 }
 

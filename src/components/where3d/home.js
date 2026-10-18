@@ -143,8 +143,9 @@ function createPlaidTexture(kit) {
  * Chibi-style person, one unit tall, facing +z. `waveSide` is the arm that
  * waves (+1 = their left, on screen right); the other hand reaches inward.
  */
-function createPerson(kit, look) {
+export function createPerson(kit, look) {
   const person = new THREE.Group();
+  person.userData.dynamic = true;
   const body = new THREE.Group();
   person.add(body);
   const add = (object, x, y, z) => {
@@ -241,19 +242,96 @@ function createPerson(kit, look) {
   }
 
   const waveSide = look.waveSide;
-  function update(time, offset) {
+  let pose = look.pose ?? "wave";
+  const front = shoulders[waveSide];
+  const back = shoulders[-waveSide];
+
+  function update(time, offset = 0) {
     const t = time + offset;
-    shoulders[waveSide].rotation.z = waveSide * (2.55 + Math.sin(t * 7.5) * 0.38);
-    shoulders[-waveSide].rotation.z = -waveSide * 0.55;
-    shoulders[-waveSide].rotation.x = -0.15;
-    body.position.y = Math.abs(Math.sin(t * 3.75)) * 0.03;
-    head.rotation.z = Math.sin(t * 1.9) * 0.09;
-    head.rotation.x = -0.05;
+    body.rotation.set(0, 0, 0);
+    head.rotation.set(-0.05, 0, Math.sin(t * 1.9) * 0.09);
+    if (pose === "walk") {
+      const stride = Math.sin(t * 6);
+      front.rotation.set(stride * 0.7, 0, waveSide * 0.12);
+      back.rotation.set(-stride * 0.7, 0, -waveSide * 0.12);
+      body.position.y = Math.abs(stride) * 0.035;
+    } else if (pose === "swing") {
+      const swing = Math.sin(t * 5);
+      front.rotation.set(-0.5, 0, waveSide * (1.1 + swing * 0.8));
+      back.rotation.set(0, 0, -waveSide * 0.45);
+      body.rotation.y = swing * 0.3;
+      body.position.y = Math.max(0, Math.sin(t * 10)) * 0.04;
+    } else if (pose === "ski") {
+      front.rotation.set(-0.35, 0, waveSide * 0.85);
+      back.rotation.set(-0.35, 0, -waveSide * 0.85);
+      body.rotation.x = 0.22;
+      body.position.y = Math.sin(t * 4) * 0.015;
+    } else if (pose === "cheer") {
+      front.rotation.set(0, 0, waveSide * (2.7 + Math.sin(t * 9) * 0.2));
+      back.rotation.set(0, 0, -waveSide * (2.7 + Math.sin(t * 9 + 1) * 0.2));
+      body.position.y = Math.abs(Math.sin(t * 4.5)) * 0.06;
+    } else {
+      front.rotation.set(0, 0, waveSide * (2.55 + Math.sin(t * 7.5) * 0.38));
+      back.rotation.set(-0.15, 0, -waveSide * 0.55);
+      body.position.y = Math.abs(Math.sin(t * 3.75)) * 0.03;
+    }
   }
-  return { object: person, update };
+  return {
+    object: person,
+    body,
+    head,
+    hands: { front, back },
+    update,
+    setPose(nextPose) {
+      pose = nextPose;
+    },
+  };
 }
 
-export function createHome(kit) {
+/**
+ * The two hosts in their everyday outfits. `overrides` swaps parts of each look
+ * (outfits, pose) so other chapters can dress them for hiking, skiing and so on.
+ */
+export function createHostPair(kit, overrides = {}) {
+  const skinLight = "#f6d3bb";
+  const skinWarm = "#f1c9a5";
+  const wife = createPerson(kit, {
+    skin: skinWarm,
+    hair: "#16141a",
+    topCap: Math.PI * 0.42,
+    backCap: Math.PI * 0.6,
+    faceGap: 1.7,
+    fringe: true,
+    longHair: true,
+    earrings: true,
+    shirtMaterial: kit.material("#7cc6b8"),
+    sleeveMaterial: kit.material("#7cc6b8"),
+    collar: "#5fb3a4",
+    zip: P.white,
+    legs: "#2e3142",
+    legStripe: P.white,
+    shoes: "#f7f7f9",
+    waveSide: -1,
+    ...overrides.wife,
+  });
+  const plaid = overrides.husband?.shirtMaterial ? null : createPlaidTexture(kit);
+  const husband = createPerson(kit, {
+    skin: skinLight,
+    hair: "#d4b56a",
+    topCap: Math.PI * 0.36,
+    backCap: Math.PI * 0.5,
+    faceGap: 2.2,
+    shirtMaterial: plaid,
+    sleeveMaterial: plaid,
+    legs: "#3e5c8a",
+    shoes: "#5b4334",
+    waveSide: 1,
+    ...overrides.husband,
+  });
+  return { wife, husband };
+}
+
+export async function createHome(kit, slice = async () => {}) {
   const group = new THREE.Group();
   const base = new THREE.Vector3(HOME.x, LAND_TOP, HOME.z);
   const front = HOME.z + HOUSE_DEPTH / 2;
@@ -309,6 +387,7 @@ export function createHome(kit) {
     neighbour.scale.setScalar(0.85);
     neighbour.rotation.y = rotation;
     group.add(placed(neighbour, HOME.x + dx, LAND_TOP, z));
+    await slice();
   }
   const parked = createCar(kit, "#f4a261");
   parked.scale.setScalar(0.32);
@@ -342,39 +421,8 @@ export function createHome(kit) {
   }
 
   // Hosts on the front path, holding hands and waving.
-  const skinLight = "#f6d3bb";
-  const skinWarm = "#f1c9a5";
-  const wife = createPerson(kit, {
-    skin: skinWarm,
-    hair: "#16141a",
-    topCap: Math.PI * 0.42,
-    backCap: Math.PI * 0.6,
-    faceGap: 1.7,
-    fringe: true,
-    longHair: true,
-    earrings: true,
-    shirtMaterial: kit.material("#7cc6b8"),
-    sleeveMaterial: kit.material("#7cc6b8"),
-    collar: "#5fb3a4",
-    zip: P.white,
-    legs: "#2e3142",
-    legStripe: P.white,
-    shoes: "#f7f7f9",
-    waveSide: -1,
-  });
-  const plaid = createPlaidTexture(kit);
-  const husband = createPerson(kit, {
-    skin: skinLight,
-    hair: "#d4b56a",
-    topCap: Math.PI * 0.36,
-    backCap: Math.PI * 0.5,
-    faceGap: 2.2,
-    shirtMaterial: plaid,
-    sleeveMaterial: plaid,
-    legs: "#3e5c8a",
-    shoes: "#5b4334",
-    waveSide: 1,
-  });
+  await slice();
+  const { wife, husband } = createHostPair(kit);
   const hostScale = 0.34;
   const hostsZ = front + 0.24;
   wife.object.scale.setScalar(hostScale * 0.94);
@@ -384,6 +432,7 @@ export function createHome(kit) {
 
   // Map pin that marks the house from far away.
   const pin = new THREE.Group();
+  pin.userData.dynamic = true;
   pin.add(placed(kit.mesh(new THREE.SphereGeometry(0.42, 24, 18), P.brand), 0, 0.62, 0));
   pin.add(placed(kit.mesh(new THREE.ConeGeometry(0.3, 0.55, 20).rotateX(Math.PI), P.brand), 0, 0.3, 0));
   pin.add(placed(kit.mesh(new THREE.SphereGeometry(0.17, 16, 12), P.white, { castShadow: false }), 0, 0.64, 0.3));

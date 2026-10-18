@@ -276,6 +276,7 @@ export function createSkyTrain(kit) {
 
   const cars = Array.from({ length: 3 }, () => {
     const car = new THREE.Group();
+    car.userData.dynamic = true;
     car.add(kit.mesh(roundedBox(0.24, 0.2, 0.58, 0.08), P.white));
     const stripe = kit.mesh(roundedBox(0.25, 0.05, 0.56, 0.02), "#2f6fd6", { castShadow: false });
     stripe.position.y = 0.01;

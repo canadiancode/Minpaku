@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createToonKit, palette as P } from "../hero3d/toonKit.js";
 import { createCar, createCloud } from "../hero3d/props.js";
-import { createOcean, createSkyDome, SKY_HORIZON } from "../hero3d/createFlightScene.js";
+import { createOcean, createSkyDome, SKY_HORIZON } from "../stage/environment.js";
 import {
   COASTLINE,
   HIGHWAY_1,
@@ -15,6 +15,8 @@ import {
 import { createFiller, createLandmarks } from "./landmarks.js";
 import { createHome } from "./home.js";
 import { CITY_LABELS, HOME, INTRO_CAMERA, LAND_TOP, TOUR_STOPS } from "./tour.js";
+import { mergeStaticMeshes } from "../stage/mergeStatic.js";
+import { content } from "../../i18n/content.js";
 
 const smoothstep = THREE.MathUtils.smoothstep;
 const smootherstep = THREE.MathUtils.smootherstep;
@@ -100,10 +102,11 @@ function createPlacementTest() {
   };
 }
 
-function createLabelSprite(kit, text, highlight) {
+/** Paints a pill-shaped label onto the sprite and returns its base on-screen scale. */
+function paintLabel(kit, sprite, text, highlight) {
   const ratio = 2;
   const fontSize = 40 * ratio;
-  const font = `700 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const font = `700 ${fontSize}px system-ui, -apple-system, "Hiragino Sans", "Segoe UI", sans-serif`;
   const measure = document.createElement("canvas").getContext("2d");
   measure.font = font;
   const paddingX = 30 * ratio;
@@ -130,14 +133,18 @@ function createLabelSprite(kit, text, highlight) {
 
   const texture = kit.track(new THREE.CanvasTexture(canvas));
   texture.colorSpace = THREE.SRGBColorSpace;
-  const material = kit.track(
-    new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, sizeAttenuation: false }),
-  );
+  sprite.material.map?.dispose();
+  sprite.material.map = texture;
+  sprite.material.needsUpdate = true;
+  const screenHeight = highlight ? 0.044 : 0.034;
+  return new THREE.Vector3((screenHeight * canvas.width) / canvas.height, screenHeight, 1);
+}
+
+function createLabelSprite(kit) {
+  const material = kit.track(new THREE.SpriteMaterial({ depthTest: false, transparent: true, sizeAttenuation: false }));
   const sprite = new THREE.Sprite(material);
   sprite.center.set(0.5, 0);
   sprite.renderOrder = 10;
-  const screenHeight = highlight ? 0.044 : 0.034;
-  sprite.scale.set((screenHeight * canvas.width) / canvas.height, screenHeight, 1);
   return sprite;
 }
 
@@ -188,20 +195,19 @@ function samplePose(keyframes, progress, arrival, out) {
   return out;
 }
 
-export function createLowerMainlandScene(container) {
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-  } catch {
-    return { setProgress() {}, dispose() {} };
-  }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  Object.assign(renderer.domElement.style, { display: "block", width: "100%", height: "100%" });
-  container.appendChild(renderer.domElement);
+/**
+ * The Lower Mainland tour as a stage view. The build is split into steps that
+ * yield to the browser, so preparing it in the background never freezes scrolling.
+ */
+export async function createLowerMainlandView({ yieldToMain, createTimeSlicer, invalidate }) {
+  const slice = createTimeSlicer();
+  const buildTimings = {};
+  let stepStartedAt = performance.now();
+  const finishStep = async (label) => {
+    buildTimings[label] = Math.round(performance.now() - stepStartedAt);
+    await yieldToMain();
+    stepStartedAt = performance.now();
+  };
 
   const kit = createToonKit();
   const scene = new THREE.Scene();
@@ -223,21 +229,44 @@ export function createLowerMainlandScene(container) {
   scene.add(ocean.object);
   const terrain = createTerrain(kit);
   const skyTrain = createSkyTrain(kit);
-  const landmarks = createLandmarks(kit);
-  const home = createHome(kit);
+  await finishStep("terrain");
+  const landmarks = await createLandmarks(kit, slice);
+  await finishStep("landmarks");
+  const home = await createHome(kit, slice);
   scene.add(terrain.group, skyTrain.group, landmarks.group, home.group);
+  await finishStep("home");
   const random = seededRandom(11);
-  scene.add(createFiller(kit, createPlacementTest(), random));
+  scene.add(await createFiller(kit, createPlacementTest(), random, slice));
+  await finishStep("filler");
+  for (const group of [terrain.group, skyTrain.group, home.group]) await mergeStaticMeshes(kit, group, slice);
+  await finishStep("merge terrain + home");
+  await mergeStaticMeshes(kit, landmarks.group, slice);
+  await finishStep("merge landmarks");
 
   const labels = CITY_LABELS.map(({ name, x, z, highlight }) => {
-    const sprite = createLabelSprite(kit, name, highlight);
+    const sprite = createLabelSprite(kit);
     sprite.position.set(x, LAND_TOP + (highlight ? 1.8 : 1.3), z);
     scene.add(sprite);
-    return { sprite, highlight, baseScale: sprite.scale.clone() };
+    return { sprite, name, highlight, baseScale: new THREE.Vector3(1, 1, 1) };
   });
-  const homeLabel = createLabelSprite(kit, "Minpaku ♥", true);
-  const homeLabelScale = homeLabel.scale.clone();
-  scene.add(homeLabel);
+  const homeLabel = { sprite: createLabelSprite(kit), highlight: true, baseScale: new THREE.Vector3(1, 1, 1) };
+  scene.add(homeLabel.sprite);
+  let labelScale = 1;
+
+  function applyLabelScale() {
+    for (const label of [...labels, homeLabel]) label.sprite.scale.copy(label.baseScale).multiplyScalar(labelScale);
+  }
+
+  function setLanguage(language) {
+    const copy = content[language] ?? content.en;
+    for (const label of labels) {
+      label.baseScale = paintLabel(kit, label.sprite, copy.tour.cityLabels[label.name] ?? label.name, label.highlight);
+    }
+    homeLabel.baseScale = paintLabel(kit, homeLabel.sprite, copy.tour.homeLabel, true);
+    applyLabelScale();
+    invalidate();
+  }
+  setLanguage("en");
 
   const highwayCurve = terrain.highwayCurve;
   const highwayCars = Array.from({ length: 12 }, (_, index) => {
@@ -330,9 +359,10 @@ export function createLowerMainlandScene(container) {
     }
     const pinVisibility = smoothstep(fitWidth, 3.5, 6.5) * introFade;
     const pinScale = THREE.MathUtils.clamp(fitWidth / 18, 0.3, 1);
-    homeLabel.position.set(HOME.x, home.pin.position.y + 1.05 * pinVisibility * pinScale, HOME.z);
-    homeLabel.material.opacity = pinVisibility * (fitWidth > 40 ? 0 : 1);
-    homeLabel.visible = homeLabel.material.opacity > 0.01;
+    const homeSprite = homeLabel.sprite;
+    homeSprite.position.set(HOME.x, home.pin.position.y + 1.05 * pinVisibility * pinScale, HOME.z);
+    homeSprite.material.opacity = pinVisibility * (fitWidth > 40 ? 0 : 1);
+    homeSprite.visible = homeSprite.material.opacity > 0.01;
     return { pinVisibility, pinScale };
   }
 
@@ -359,9 +389,7 @@ export function createLowerMainlandScene(container) {
     clouds.quaternion.copy(camera.quaternion);
   }
 
-  function resize() {
-    const width = Math.max(1, container.clientWidth);
-    const height = Math.max(1, container.clientHeight);
+  function resize(width, height) {
     view.width = width;
     view.height = height;
     view.aspect = width / height;
@@ -369,83 +397,43 @@ export function createLowerMainlandScene(container) {
     view.wide = width >= 768 && view.aspect > 1;
     if (wasWide !== view.wide || !keyframes) keyframes = buildCameraTimeline(!view.wide);
     // Label size is a fraction of screen height, so shrink it on tall phone screens.
-    const labelScale = THREE.MathUtils.clamp(view.aspect * 1.15, 0.55, 1);
-    for (const label of labels) label.sprite.scale.copy(label.baseScale).multiplyScalar(labelScale);
-    homeLabel.scale.copy(homeLabelScale).multiplyScalar(labelScale);
-    renderer.setSize(width, height, false);
+    labelScale = THREE.MathUtils.clamp(view.aspect * 1.15, 0.55, 1);
+    applyLabelScale();
     camera.aspect = view.aspect;
     // Leave room for the text card: left side on wide screens, bottom on phones.
     if (view.wide) camera.setViewOffset(width, height, -width * 0.17, 0, width, height);
     else camera.setViewOffset(width, height, 0, height * 0.17, width, height);
-    if (!running) renderFrame(0);
   }
 
   let elapsed = 0;
-  let lastTimestamp = null;
-  let frameId = 0;
-  let running = false;
-  let isVisible = false;
 
-  function renderFrame(deltaSeconds) {
-    const animationDelta = reducedMotion ? 0 : deltaSeconds;
-    elapsed += animationDelta;
+  function update(deltaSeconds) {
+    elapsed += deltaSeconds;
     const { fitWidth } = updateCamera(deltaSeconds);
     const { pinVisibility, pinScale } = updateLabels(fitWidth);
     home.update(elapsed, pinVisibility, pinScale);
-    landmarks.update(elapsed, animationDelta);
+    landmarks.update(elapsed, deltaSeconds);
     skyTrain.update(elapsed);
     ocean.update(elapsed);
-    updateHighway(animationDelta);
+    updateHighway(deltaSeconds);
     updateClouds();
-    renderer.render(scene, camera);
   }
 
-  function tick(timestamp) {
-    frameId = requestAnimationFrame(tick);
-    const deltaSeconds = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, 0.05);
-    lastTimestamp = timestamp;
-    renderFrame(deltaSeconds);
-  }
-
-  function start() {
-    if (running || !isVisible || document.hidden) return;
-    running = true;
-    lastTimestamp = null;
-    frameId = requestAnimationFrame(tick);
-  }
-
-  function stop() {
-    running = false;
-    cancelAnimationFrame(frameId);
-  }
-
-  const resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(container);
-  const intersectionObserver = new IntersectionObserver(([entry]) => {
-    isVisible = entry.isIntersecting;
-    if (isVisible) start();
-    else stop();
-  });
-  intersectionObserver.observe(container);
-  const onVisibilityChange = () => (document.hidden ? stop() : start());
-  document.addEventListener("visibilitychange", onVisibilityChange);
-
-  resize();
+  if (import.meta.env.DEV) console.debug(`[tour] build steps (ms) ${JSON.stringify(buildTimings)}`);
 
   return {
+    scene,
+    camera,
+    resize,
+    update,
+    setLanguage,
     setProgress(value, arrivalValue = 1) {
       progress = THREE.MathUtils.clamp(value, 0, 1);
       arrival = THREE.MathUtils.clamp(arrivalValue, 0, 1);
-      if (!running) renderFrame(0);
+      invalidate();
     },
     dispose() {
-      stop();
-      resizeObserver.disconnect();
-      intersectionObserver.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       kit.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
     },
   };
 }

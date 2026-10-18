@@ -147,6 +147,7 @@ function createMall(kit, width, depth, color) {
 
 function createFountain(kit) {
   const fountain = new THREE.Group();
+  fountain.userData.dynamic = true;
   const jetGeometry = kit.geometry("fountain-jet", () => new THREE.SphereGeometry(0.05, 8, 6));
   const jets = Array.from({ length: 6 }, () => {
     const jet = kit.mesh(jetGeometry, P.white, { castShadow: false });
@@ -167,7 +168,7 @@ function scatter(group, x, z, factory, positions) {
   for (const [dx, dz, scale = 1, rotation = 0] of positions) put(group, factory(), x + dx, z + dz, { scale, rotation });
 }
 
-export function createLandmarks(kit) {
+export async function createLandmarks(kit, slice = async () => {}) {
   const group = new THREE.Group();
   const updaters = [];
   const pine = () => createPine(kit, 1);
@@ -192,12 +193,14 @@ export function createLandmarks(kit) {
   ]);
   group.add(createBridge(kit, [-22.7, -5.3], [-22.5, -7.7], { style: "suspension", color: "#3f9a6b" }));
 
+  await slice();
   // North Vancouver: Grouse Mountain gondola, Lonsdale Quay, Capilano Suspension Bridge
   put(group, createMall(kit, 0.8, 0.4, "#f6d6a8"), -16.4, -7.95);
   const gondolaBase = new THREE.Vector3(-15.2, 0.6, -9.4);
   const gondolaTop = new THREE.Vector3(-15.5, 3.9, -12.3);
   group.add(cylinderBetween(kit, gondolaBase, gondolaTop, 0.012, P.ink, { castShadow: false }));
   const gondola = kit.mesh(roundedBox(0.16, 0.14, 0.16, 0.05), "#e63946");
+  gondola.userData.dynamic = true;
   group.add(gondola);
   updaters.push((time) => {
     const t = (Math.sin(time * 0.35) + 1) / 2;
@@ -208,6 +211,7 @@ export function createLandmarks(kit) {
   ]);
   group.add(createBridge(kit, [-20.1, -10.0], [-19.1, -10.0], { style: "rope", deckHeight: 0.25 }));
 
+  await slice();
   // Burnaby
   [[-8.7, 1.7, 0.42, 1.6], [-8.1, 2.2, 0.46, 2.0], [-9.3, 2.3, 0.38, 1.2], [-7.6, 1.6, 0.36, 1.1]].forEach(
     ([x, z, width, height]) => put(group, createTower(kit, width, height, "#f7c59f"), x, z),
@@ -223,6 +227,7 @@ export function createLandmarks(kit) {
   scatter(group, -9.7, 0.1, roundTree(), [[-0.9, 0.1, 0.38], [0.8, 0.2, 0.4], [0, -0.7, 0.36]]);
   scatter(group, -4.8, -4.2, pine, [[-1.4, 0.6, 0.4], [1.2, 0.8, 0.4], [-0.9, -1.0, 0.42], [0.8, -1.2, 0.4]]);
 
+  await slice();
   // New Westminster
   put(group, createTinSoldier(kit), -1.5, 4.3, { scale: 1.2 });
   put(group, createMall(kit, 0.9, 0.42, "#ffe1a8"), -0.5, 4.2);
@@ -239,6 +244,7 @@ export function createLandmarks(kit) {
     put(group, createSmallHouse(kit, color), x, z, { scale: 0.7 }),
   );
 
+  await slice();
   // Richmond: YVR, Steveston, International Buddhist Temple
   for (const z of [8.6, 10.0]) {
     const runway = kit.mesh(roundedBox(4.0, 0.03, 0.4, 0.01), "#c7ccd9", { castShadow: false });
@@ -259,6 +265,7 @@ export function createLandmarks(kit) {
 
   const departingPlane = createPlane(kit);
   departingPlane.object.scale.setScalar(0.32);
+  departingPlane.object.userData.dynamic = true;
   group.add(departingPlane.object);
   updaters.push((time, deltaSeconds) => {
     const cycle = 14;
@@ -277,6 +284,7 @@ export function createLandmarks(kit) {
   const fishingBoats = [[-18.6, 13.4, 0], [-19.6, 13.8, 1.6]].map(([x, z, phase]) => {
     const boat = createBoat(kit, phase ? "#3d6fb6" : "#e76f51", P.white);
     boat.scale.setScalar(0.3);
+    boat.userData.dynamic = true;
     boat.position.set(x, 0.52, z);
     boat.rotation.y = 1.2;
     group.add(boat);
@@ -288,6 +296,7 @@ export function createLandmarks(kit) {
   put(group, createTemple(kit), -13.2, 10.6, { scale: 1.1 });
   scatter(group, -15.8, 9.0, () => createCherryTree(kit, 1), [[0, 0, 0.36], [0.9, 0.6, 0.34], [-1.0, 0.8, 0.36]]);
 
+  await slice();
   // Surrey & Langley
   put(group, createTower(kit, 0.5, 2.0, "#bde0fe"), 2.4, 9.0);
   put(group, createTower(kit, 0.38, 1.1, "#a2d2ff"), 3.0, 9.4);
@@ -295,6 +304,7 @@ export function createLandmarks(kit) {
   put(group, createFort(kit), 16.6, 7.2, { scale: 0.9 });
   put(group, createFieldRows(kit, 5, 10, "#6fbf5f", "#8e44ad"), 19.4, 12.8, { rotation: 0.1 });
 
+  await slice();
   // Port Moody: Rocky Point Park pier and Brewery Row
   const pier = kit.mesh(roundedBox(0.22, 0.04, 0.9, 0.02), "#c79a6b");
   pier.position.set(2.4, 0.56, -6.0);
@@ -304,6 +314,7 @@ export function createLandmarks(kit) {
   barrel.position.set(1.1, 0.58, -4.75);
   group.add(barrel);
 
+  await slice();
   // Coquitlam: Lafarge Lake fountain, Coquitlam Centre, Coquitlam Crunch, Town Centre Park, Mundy Park
   const fountain = createFountain(kit);
   fountain.object.position.set(4.7, 0.52, -3.3);
@@ -327,6 +338,7 @@ export function createLandmarks(kit) {
     [0, 0, 0.42], [0.5, 0.3, 0.38], [-0.5, 0.4, 0.4], [0.3, -0.4, 0.36], [-0.4, -0.3, 0.44], [0.9, -0.1, 0.36], [-0.9, 0.1, 0.38],
   ]);
 
+  await slice();
   // Port Coquitlam, Pitt Meadows, Maple Ridge
   [[9.0, -1.8, "#ffd6a5"], [9.6, -1.2, "#bde0fe"], [8.8, -0.6, "#ffc8dd"], [9.8, -0.2, "#caffbf"]].forEach(([x, z, color]) =>
     put(group, createSmallHouse(kit, color), x, z, { scale: 0.7 }),
@@ -367,7 +379,7 @@ export function createSmallHouse(kit, wallColor, roofColor = "#5b6275") {
 }
 
 /** Instanced bushes and houses that fill the gaps between landmarks. */
-export function createFiller(kit, isFree, random) {
+export async function createFiller(kit, isFree, random, slice = async () => {}) {
   const group = new THREE.Group();
   const treePositions = [];
   const housePositions = [];
@@ -376,6 +388,7 @@ export function createFiller(kit, isFree, random) {
     const z = -11 + random() * 27;
     const wantsHouse = housePositions.length < 160 && random() < 0.3 && z > -9;
     const radius = wantsHouse ? 0.4 : 0.22;
+    if (attempt % 100 === 0) await slice();
     if (!isFree(x, z, radius)) continue;
     if (wantsHouse) housePositions.push([x, z]);
     else if (treePositions.length < 520) treePositions.push([x, z]);
