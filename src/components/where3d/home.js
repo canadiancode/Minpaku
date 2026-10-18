@@ -155,6 +155,9 @@ function createPerson(kit, look) {
   for (const side of [-1, 1]) {
     add(kit.mesh(roundedBox(0.12, 0.07, 0.19, 0.03), look.shoes), side * 0.075, 0.035, 0.025);
     add(kit.mesh(new THREE.CapsuleGeometry(0.062, 0.16, 6, 12), look.legs), side * 0.075, 0.17, 0);
+    if (look.legStripe) {
+      add(kit.mesh(roundedBox(0.014, 0.22, 0.03, 0.006), look.legStripe, { castShadow: false }), side * 0.135, 0.18, 0);
+    }
   }
   if (look.skirt) {
     add(kit.mesh(new THREE.CylinderGeometry(0.13, 0.21, 0.26, 20), look.skirt), 0, 0.3, 0);
@@ -164,6 +167,9 @@ function createPerson(kit, look) {
   if (look.collar) {
     const collar = add(kit.mesh(new THREE.TorusGeometry(0.075, 0.022, 6, 16).rotateX(Math.PI / 2), look.collar), 0, 0.6, 0.015);
     collar.scale.z = 0.8;
+  }
+  if (look.zip) {
+    add(kit.mesh(roundedBox(0.018, 0.24, 0.012, 0.006), look.zip, { castShadow: false }), 0, 0.46, 0.133);
   }
 
   const shoulders = {};
@@ -207,6 +213,14 @@ function createPerson(kit, look) {
     const fringe = kit.mesh(new THREE.SphereGeometry(0.2, 24, 12, Math.PI / 2 - 0.9, 1.8, 0.3, 0.55), null, { material: hairMaterial });
     fringe.scale.set(1.04, 1.02, 1.08);
     head.add(fringe);
+  }
+  if (look.longHair) {
+    const backLength = kit.mesh(roundedBox(0.4, 0.44, 0.1, 0.05), null, { material: hairMaterial });
+    head.add(placed(backLength, 0, -0.2, -0.13));
+    for (const side of [-1, 1]) {
+      const strand = kit.mesh(new THREE.CapsuleGeometry(0.048, 0.24, 6, 10), null, { material: hairMaterial });
+      head.add(placed(strand, side * 0.185, -0.17, 0.02));
+    }
   }
   if (look.streak) {
     const streak = kit.mesh(new THREE.SphereGeometry(0.214, 12, 8, Math.PI / 2 + 0.55, 0.12, 0.15, 0.7), null, {
@@ -278,7 +292,7 @@ export function createHome(kit) {
   mailbox.add(placed(kit.mesh(roundedBox(0.07, 0.06, 0.1, 0.025), "#2f6fd6"), 0, 0.16, 0));
   group.add(placed(mailbox, HOME.x + 0.55, LAND_TOP, STREET_Z - 0.32));
 
-  const car = createCar(kit, "#5fa8d3");
+  const car = createCar(kit, "#e63946");
   car.scale.setScalar(0.32);
   group.add(placed(car, HOME.x + 0.93, LAND_TOP + 0.02, front + 0.22));
 
@@ -332,25 +346,26 @@ export function createHome(kit) {
   const skinWarm = "#f1c9a5";
   const wife = createPerson(kit, {
     skin: skinWarm,
-    hair: "#2c2629",
-    streak: "#a7a2a6",
+    hair: "#16141a",
     topCap: Math.PI * 0.42,
     backCap: Math.PI * 0.6,
     faceGap: 1.7,
     fringe: true,
+    longHair: true,
     earrings: true,
-    shirtMaterial: kit.material("#b9a3dd"),
-    sleeveMaterial: kit.material("#b9a3dd"),
-    collar: P.white,
-    skirt: "#34406b",
-    legs: skinWarm,
-    shoes: "#7a4f3a",
+    shirtMaterial: kit.material("#7cc6b8"),
+    sleeveMaterial: kit.material("#7cc6b8"),
+    collar: "#5fb3a4",
+    zip: P.white,
+    legs: "#2e3142",
+    legStripe: P.white,
+    shoes: "#f7f7f9",
     waveSide: -1,
   });
   const plaid = createPlaidTexture(kit);
   const husband = createPerson(kit, {
     skin: skinLight,
-    hair: "#a29c96",
+    hair: "#d4b56a",
     topCap: Math.PI * 0.36,
     backCap: Math.PI * 0.5,
     faceGap: 2.2,
@@ -372,7 +387,8 @@ export function createHome(kit) {
   pin.add(placed(kit.mesh(new THREE.SphereGeometry(0.42, 24, 18), P.brand), 0, 0.62, 0));
   pin.add(placed(kit.mesh(new THREE.ConeGeometry(0.3, 0.55, 20).rotateX(Math.PI), P.brand), 0, 0.3, 0));
   pin.add(placed(kit.mesh(new THREE.SphereGeometry(0.17, 16, 12), P.white, { castShadow: false }), 0, 0.64, 0.3));
-  pin.position.set(HOME.x, LAND_TOP + 1.2, HOME.z);
+  const pinBaseY = LAND_TOP + 1.55; // just above the roof ridge and chimney
+  pin.position.set(HOME.x, pinBaseY, HOME.z);
   group.add(pin);
 
   return {
@@ -384,7 +400,7 @@ export function createHome(kit) {
       husband.update(time, 0.35);
       pin.visible = pinVisibility > 0.01;
       pin.scale.setScalar(pinVisibility * pinScale);
-      pin.position.y = LAND_TOP + 0.9 * pinScale + 0.3 + Math.abs(Math.sin(time * 2.4)) * 0.35 * pinScale;
+      pin.position.y = pinBaseY + Math.abs(Math.sin(time * 2.4)) * 0.35 * pinScale;
       pin.rotation.y = time * 0.8;
     },
   };
