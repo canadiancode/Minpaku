@@ -10,7 +10,7 @@ export function yieldToMain() {
  * Returns an async checkpoint that yields only once the current slice of work
  * has run longer than `budgetMs`, so tight build loops stay responsive cheaply.
  */
-export function createTimeSlicer(budgetMs = 30) {
+export function createTimeSlicer(budgetMs = 12) {
   let sliceStartedAt = performance.now();
   return async () => {
     if (performance.now() - sliceStartedAt < budgetMs) return;
@@ -53,12 +53,38 @@ export function createStage() {
   let frameId = 0;
   let lastTimestamp = null;
 
-  // Idle-priority views wait until an eager view has painted its first frame.
+  // Idle-priority views wait until an eager view has painted its first frame
+  // and the visitor has started engaging (scrolling, tapping, typing), then build
+  // one at a time in page order. A view that nears the viewport builds at once.
   let releaseIdleViews;
   const idleGate = new Promise((resolve) => {
     releaseIdleViews = resolve;
     setTimeout(resolve, 3000);
   });
+  const engagementEvents = ["scroll", "wheel", "pointerdown", "keydown", "touchstart"];
+  const engaged = new Promise((resolve) => {
+    const onEngage = () => {
+      for (const type of engagementEvents) window.removeEventListener(type, onEngage);
+      resolve();
+    };
+    for (const type of engagementEvents) window.addEventListener(type, onEngage, { passive: true });
+  });
+  const idleQueue = [];
+  let isDrainingIdleQueue = false;
+
+  async function drainIdleQueue() {
+    if (isDrainingIdleQueue) return;
+    isDrainingIdleQueue = true;
+    await idleGate;
+    await engaged;
+    while (idleQueue.length) {
+      const entry = idleQueue.shift();
+      if (entry.removed) continue;
+      await whenIdle();
+      await load(entry)?.catch(() => null);
+    }
+    isDrainingIdleQueue = false;
+  }
 
   const context = {
     reducedMotion,
@@ -191,7 +217,10 @@ export function createStage() {
     nearObserver.observe(host);
 
     if (priority === "eager") load(entry);
-    else idleGate.then(whenIdle).then(() => !entry.removed && load(entry));
+    else {
+      idleQueue.push(entry);
+      drainIdleQueue();
+    }
 
     return {
       ready: entry.ready,

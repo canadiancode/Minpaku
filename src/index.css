@@ -10,6 +10,7 @@
   --color-brand-border: rgba(155, 27, 48, 0.42);
   --color-brand-foreground: #ffffff;
   --color-cherry: #d6435a;
+  --color-cherry-text: #b42a43; /* cherry dark enough for text (≥4.5:1 on white) */
   --color-sky: #8fd4f5;
   --color-sky-pale: #e9f8fc;
   --color-cloud: #f7fcfe;
@@ -126,6 +127,25 @@ p {
 }
 
 @layer components {
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 200;
+  translate: -50% -200%;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration: none;
+  color: #fff;
+  background: var(--text-heading);
+  transition: translate 0.2s ease;
+}
+
+.skip-link:focus {
+  translate: -50% 0;
+}
+
 /* ───────────────────────── Header ───────────────────────── */
 
 .site-header {
@@ -471,7 +491,7 @@ p {
 .mobile-menu-number {
   font-family: "Sekuya", var(--sans);
   font-size: 15px;
-  color: var(--color-cherry);
+  color: var(--color-cherry-text);
 }
 
 .mobile-menu-label {
@@ -606,7 +626,7 @@ p {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-cherry);
+  color: var(--color-cherry-text);
 }
 
 .chapter-eyebrow::before {
@@ -1061,7 +1081,7 @@ p {
     justify-content: center;
     gap: 6px;
     border-radius: 10px;
-    color: var(--color-cherry);
+    color: var(--color-cherry-text);
     font-family: var(--heading);
     font-size: 20px;
     background: #fff;

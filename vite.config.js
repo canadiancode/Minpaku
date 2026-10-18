@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -37,9 +38,28 @@ function netlifyFunctionsInDev() {
   }
 }
 
+/** Site-wide headers from Netlify's public/_headers (the `/*` block), applied to `vite preview`. */
+function siteWideHeaders() {
+  const headers = {}
+  let inSiteWideBlock = false
+  for (const line of readFileSync(new URL('./public/_headers', import.meta.url), 'utf8').split('\n')) {
+    if (!line.trim()) continue
+    if (!/^\s/.test(line)) {
+      inSiteWideBlock = line.trim() === '/*'
+      continue
+    }
+    if (!inSiteWideBlock) continue
+    const separator = line.indexOf(':')
+    headers[line.slice(0, separator).trim()] = line.slice(separator + 1).trim()
+  }
+  return headers
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), netlifyFunctionsInDev()],
+  // Mirrors production's security headers so CSP problems show up locally first.
+  preview: { headers: siteWideHeaders() },
   build: {
     // Keep SVG URL imports as emitted files so `<image href>` always resolves in production.
     assetsInlineLimit: 0,
